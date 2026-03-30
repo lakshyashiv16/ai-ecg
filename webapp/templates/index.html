@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ECG AI Classifier</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #0f1117;
+            color: #ffffff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #00d4ff, #7b2ff7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: #888;
+            margin-bottom: 40px;
+            font-size: 1rem;
+        }
+
+        .card {
+            background: #1a1d2e;
+            border: 1px solid #2a2d3e;
+            border-radius: 16px;
+            padding: 40px;
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 30px;
+        }
+
+        .upload-area {
+            border: 2px dashed #2a2d3e;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .upload-area p { color: #888; margin-top: 10px; }
+        .upload-icon { font-size: 3rem; }
+
+        input[type="file"] { display: none; }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(90deg, #00d4ff, #7b2ff7);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+
+        button:hover { opacity: 0.85; }
+        button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .results {
+            width: 100%;
+            max-width: 600px;
+            display: none;
+        }
+
+        .result-card {
+            background: #1a1d2e;
+            border: 1px solid #2a2d3e;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 16px;
+        }
+
+        .dominant {
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.05);
+        }
+
+        .condition-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .condition-desc { color: #888; margin-bottom: 16px; }
+
+        .bar-container {
+            background: #0f1117;
+            border-radius: 999px;
+            height: 8px;
+            overflow: hidden;
+        }
+
+        .bar {
+            height: 100%;
+            background: linear-gradient(90deg, #00d4ff, #7b2ff7);
+            border-radius: 999px;
+            transition: width 1s ease;
+        }
+
+        .percentage {
+            text-align: right;
+            font-size: 0.85rem;
+            color: #888;
+            margin-top: 6px;
+        }
+
+        .loading {
+            text-align: center;
+            color: #888;
+            padding: 20px;
+            display: none;
+        }
+
+        .total-beats {
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>ECG AI Classifier</h1>
+    <p class="subtitle">Upload an ECG signal file to detect arrhythmias using deep learning</p>
+
+    <div class="card">
+        <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+            <div class="upload-icon">🫀</div>
+            <p id="fileName">Click to upload ECG file (.csv or .dat)</p>
+        </div>
+        <input type="file" id="fileInput" accept=".csv,.dat,.txt">
+        <button id="analyzeBtn" onclick="analyze()" disabled>Analyze ECG</button>
+    </div>
+
+    <div class="loading" id="loading">
+        <p>🔍 Analyzing ECG signal...</p>
+    </div>
+
+    <div class="results" id="results">
+        <p class="total-beats" id="totalBeats"></p>
+    </div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                document.getElementById('fileName').textContent = file.name;
+                document.getElementById('analyzeBtn').disabled = false;
+            }
+        });
+
+        async function analyze() {
+            const file = document.getElementById('fileInput').files[0];
+            if (!file) return;
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('analyzeBtn').disabled = true;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('analyzeBtn').disabled = false;
+
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                displayResults(data);
+
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('analyzeBtn').disabled = false;
+                alert('Something went wrong. Please try again.');
+            }
+        }
+
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '';
+            resultsDiv.style.display = 'block';
+
+            const totalP = document.createElement('p');
+            totalP.className = 'total-beats';
+            totalP.textContent = `Total beats analyzed: ${data.total_beats}`;
+            resultsDiv.appendChild(totalP);
+
+            data.results.forEach((r, i) => {
+                const card = document.createElement('div');
+                card.className = 'result-card' + (i === 0 ? ' dominant' : '');
+                card.innerHTML = `
+                    <div class="condition-name">${r.condition} — ${i === 0 ? '🏆 Primary' : ''}</div>
+                    <div class="condition-desc">${r.description}</div>
+                    <div class="bar-container">
+                        <div class="bar" style="width: ${r.percentage}%"></div>
+                    </div>
+                    <div class="percentage">${r.percentage}% (${r.beats} beats)</div>
+                `;
+                resultsDiv.appendChild(card);
+            });
+        }
+    </script>
+</body>
+</html>

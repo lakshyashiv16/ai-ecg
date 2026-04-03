@@ -138,18 +138,39 @@
             font-size: 0.9rem;
             margin-bottom: 20px;
         }
+
+        .source-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .source-image {
+            background: rgba(123, 47, 247, 0.2);
+            color: #7b2ff7;
+            border: 1px solid #7b2ff7;
+        }
+
+        .source-signal {
+            background: rgba(0, 212, 255, 0.2);
+            color: #00d4ff;
+            border: 1px solid #00d4ff;
+        }
     </style>
 </head>
 <body>
     <h1>ECG AI Classifier</h1>
-    <p class="subtitle">Upload an ECG signal file to detect arrhythmias using deep learning</p>
+    <p class="subtitle">Upload an ECG signal or image to detect arrhythmias using deep learning</p>
 
     <div class="card">
         <div class="upload-area" onclick="document.getElementById('fileInput').click()">
             <div class="upload-icon">🫀</div>
-            <p id="fileName">Click to upload ECG file (.csv or .dat)</p>
+            <p id="fileName">Click to upload ECG file (.csv, .dat, .png, .jpg)</p>
         </div>
-        <input type="file" id="fileInput" accept=".csv,.dat,.txt">
+        <input type="file" id="fileInput" accept=".csv,.dat,.txt,.png,.jpg,.jpeg,.bmp">
         <button id="analyzeBtn" onclick="analyze()" disabled>Analyze ECG</button>
     </div>
 
@@ -157,9 +178,7 @@
         <p>🔍 Analyzing ECG signal...</p>
     </div>
 
-    <div class="results" id="results">
-        <p class="total-beats" id="totalBeats"></p>
-    </div>
+    <div class="results" id="results"></div>
 
     <script>
         document.getElementById('fileInput').addEventListener('change', function() {
@@ -210,11 +229,19 @@
             resultsDiv.innerHTML = '';
             resultsDiv.style.display = 'block';
 
+            // Source badge
+            const badge = document.createElement('div');
+            badge.className = `source-badge source-${data.source}`;
+            badge.textContent = data.source === 'image' ? '🖼️ Analyzed from Image' : '📊 Analyzed from Signal File';
+            resultsDiv.appendChild(badge);
+
+            // Total beats
             const totalP = document.createElement('p');
             totalP.className = 'total-beats';
             totalP.textContent = `Total beats analyzed: ${data.total_beats}`;
             resultsDiv.appendChild(totalP);
 
+            // Result cards
             data.results.forEach((r, i) => {
                 const card = document.createElement('div');
                 card.className = 'result-card' + (i === 0 ? ' dominant' : '');
